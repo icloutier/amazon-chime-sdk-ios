@@ -244,6 +244,22 @@ class DefaultAudioClientObserverTests: XCTestCase {
         wait(for: [expect], timeout: defaultTimeout)
     }
     
+    func testAudioClientStateChanged_FinishDisconnectingFromConnected_WhenJoinedFromAnotherDevice() {
+        given(audioClientMock.stopSession()).willReturn(0)
+        DefaultAudioClientController.state = .started
+        defaultAudioClientObserver.audioClientStateChanged(AUDIO_CLIENT_STATE_CONNECTED,
+                                                           status: audio_client_status_t.init(MeetingSessionStatusCode.ok.rawValue))
+        defaultAudioClientObserver.audioClientStateChanged(AUDIO_CLIENT_STATE_SERVER_HUNGUP,
+                                                           status: audio_client_status_t.init(MeetingSessionStatusCode.audioJoinedFromAnotherDevice.rawValue))
+        let expect = eventually {
+            verify(mockAudioVideoObserver.audioSessionDidStopWithStatus(sessionStatus: any())).wasCalled()
+            verify(eventAnalyticsControllerMock.publishEvent(name: .meetingEnded, attributes: any())).wasCalled()
+            verify(meetingStatsCollectorMock.resetMeetingStats()).wasCalled()
+        }
+
+        wait(for: [expect], timeout: defaultTimeout)
+    }
+
     func testAudioClientStateChanged_FinishDisconnectingFromReconnecting() {
         given(audioClientMock.stopSession()).willReturn(0)
         DefaultAudioClientController.state = .started
